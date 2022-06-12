@@ -67,13 +67,18 @@ const helpers = {
     return value
   },
 
-  camelCase(value) {
-    return value.replace(/-+(.)?/g, (match, character) => {
+  /**
+   * Convert a value to be camelCase
+   * @param value the value to convert
+   * @returns The value as camelCase
+   */
+  camelCase(value: string): string {
+    return value.replace(/-+(.)?/g, (match: string, character: string) => {
       return character ? character.toUpperCase() : ''
     })
   },
 
-  accelerate(element) {
+  accelerate(element: HTMLElement) {
     helpers.css(element, 'transform', 'translate3d(0,0,0) rotate(0.0001deg)')
     helpers.css(element, 'transform-style', 'preserve-3d')
     helpers.css(element, 'backface-visibility', 'hidden')
@@ -136,7 +141,7 @@ const helpers = {
     return featureSupport
   },
 
-  css(element, property: string, value: string) {
+  css(element: HTMLElement, property: string, value: string) {
     let jsProperty = helpers.propertyCache[property]
     if (!jsProperty) {
       for (let i = 0, l = helpers.vendors.length; i < l; i++) {

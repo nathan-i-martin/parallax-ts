@@ -223,6 +223,26 @@ class Parallax {
   velocityX: number = 0;
   velocityY: number = 0;
 
+  originX: number = 0;
+  originY: number = 0;
+
+  calibrateX: number = 0;
+  calibrateY: number = 0;
+  
+  invertX: number = 0;
+  invertY: number = 0;
+  
+  frictionX: number = 0;
+  frictionY: number = 0;
+    
+  scalarX: number = 0;
+  scalarY: number = 0;
+
+  limitX: number = 0;
+  limitY: number = 0;
+
+  precision: number = 1;
+
   windowWidth: number = 0;
   windowHeight: number = 0;
   windowCenterX: number = 0;
@@ -291,6 +311,9 @@ class Parallax {
     this.initialize()
   }
 
+  /**
+   * Initialize the Parallax scene
+   */
   initialize() {
     this.transform2DSupport = helpers.transformSupport('2D');
     this.transform3DSupport = helpers.transformSupport('3D');
@@ -425,27 +448,27 @@ class Parallax {
     rqAnFr.cancel(this.raf)
   }
 
-  calibrate(x, y) {
+  calibrate(x: number, y: number) {
     this.calibrateX = x === undefined ? this.calibrateX : x
     this.calibrateY = y === undefined ? this.calibrateY : y
   }
 
-  invert(x, y) {
+  invert(x: number, y: number) {
     this.invertX = x === undefined ? this.invertX : x
     this.invertY = y === undefined ? this.invertY : y
   }
 
-  friction(x, y) {
+  friction(x: number, y: number) {
     this.frictionX = x === undefined ? this.frictionX : x
     this.frictionY = y === undefined ? this.frictionY : y
   }
 
-  scalar(x, y) {
+  scalar(x: number, y: number) {
     this.scalarX = x === undefined ? this.scalarX : x
     this.scalarY = y === undefined ? this.scalarY : y
   }
 
-  limit(x, y) {
+  limit(x: number, y: number) {
     this.limitX = x === undefined ? this.limitX : x
     this.limitY = y === undefined ? this.limitY : y
   }
@@ -460,16 +483,16 @@ class Parallax {
     this.updateDimensions()
   }
 
-  setPosition(element, x, y) {
-    x = x.toFixed(this.precision) + 'px'
-    y = y.toFixed(this.precision) + 'px'
+  setPosition(element: HTMLElement, x: number, y: number) {
+    let positionX: string = x.toFixed(this.precision) + 'px'
+    let positionY: string = y.toFixed(this.precision) + 'px'
     if (this.transform3DSupport) {
-      helpers.css(element, 'transform', 'translate3d(' + x + ',' + y + ',0)')
+      helpers.css(element, 'transform', 'translate3d(' + positionX + ',' + positionY + ',0)')
     } else if (this.transform2DSupport) {
-      helpers.css(element, 'transform', 'translate(' + x + ',' + y + ')')
+      helpers.css(element, 'transform', 'translate(' + positionX + ',' + positionY + ')')
     } else {
-      element.style.left = x
-      element.style.top = y
+      element.style.left = positionX
+      element.style.top = positionY
     }
   }
 

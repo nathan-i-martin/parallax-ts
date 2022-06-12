@@ -31,18 +31,19 @@ const helpers = {
     return helpers.deserialize(attribute)
   },
 
-  deserialize(value: string) {
-    if (value === 'true') {
-      return true
-    } else if (value === 'false') {
-      return false
-    } else if (value === 'null') {
-      return null
-    } else if (!isNaN(parseFloat(value)) && isFinite(value)) {
-      return parseFloat(value)
-    } else {
-      return value
-    }
+  /**
+   * Deserialize an attribute value
+   * @param value A string to be deserialized
+   * @returns The value after being deserialized
+   */
+  deserialize(value: string): boolean | number | string | null {
+    if (value === 'true')  return true
+    if (value === 'false') return false
+    if (value === 'null')  return null
+
+    if (!isNaN(parseFloat(value)) && isFinite(parseFloat(value))) return parseFloat(value)
+
+    return value
   },
 
   camelCase(value) {

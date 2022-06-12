@@ -11,7 +11,7 @@ const objectAssign = require('object-assign')
 
 const helpers = {
   propertyCache: {},
-  vendors: [null, ['-webkit-','webkit'], ['-moz-','Moz'], ['-o-','O'], ['-ms-','ms']],
+  vendors: [[], ['-webkit-','webkit'], ['-moz-','Moz'], ['-o-','O'], ['-ms-','ms']],
 
   /**
    * Clamp a number if it is outside of the defined region
@@ -46,7 +46,7 @@ const helpers = {
    * @param name The suffix of the data name
    * @returns The attribute, deserialized
    */
-  data(element: HTMLElement, name: string): boolean | number | string | null {
+  data(element: HTMLElement, name: string): any {
     let attribute: string = element.getAttribute('data-'+name) ?? '';
 
     return helpers.deserialize(attribute)
@@ -57,7 +57,7 @@ const helpers = {
    * @param value A string to be deserialized
    * @returns The value after being deserialized
    */
-  deserialize(value: string): boolean | number | string | null {
+  deserialize(value: string): any {
     if (value === 'true')  return true
     if (value === 'false') return false
     if (value === 'null')  return null
@@ -92,8 +92,8 @@ const helpers = {
         cssProperty: string = '',
         jsProperty: string = ''
     for (let i = 0, l = helpers.vendors.length; i < l; i++) {
-      let vendor: string[] | null = helpers?.vendors[i];
-      if (!vendor || vendor !== null) {
+      let vendor: string[] = helpers?.vendors[i];
+      if (vendor.length) {
         cssProperty = vendor[0] + 'transform'
         jsProperty = vendor[1] + 'Transform'
       } else {
@@ -133,7 +133,8 @@ const helpers = {
 
           if ( isCreatedBody ) {
             body.removeAttribute('style')
-            body.parentNode.removeChild(body)
+            
+            body.parentNode?.removeChild(body)
           }
         }
         break
@@ -145,7 +146,8 @@ const helpers = {
     let jsProperty = helpers.propertyCache[property]
     if (!jsProperty) {
       for (let i = 0, l = helpers.vendors.length; i < l; i++) {
-        if (helpers.vendors[i] !== null) {
+        let vendor: string[] = helpers?.vendors[i];
+        if (vendor.length) {
           jsProperty = helpers.camelCase(helpers.vendors[i][1] + '-' + property)
         } else {
           jsProperty = property
@@ -189,17 +191,24 @@ const MAGIC_NUMBER = 30,
       }
 
 class Parallax {
-  element: HTMLElement;
+  element?: HTMLElement;
   inputElement: HTMLElement;
+  layers?: any[] = [];
 
-  calibrationTimer = null;
-  calibrationFlag = true;
+  onReady: Function;
+
+  calibrationTimer: NodeJS.Timer;
+  calibrationFlag: boolean = true;
+  calibrationThreshold: number;
+
+  detectionTimer: NodeJS.Timer;
+
   enabled = false;
-  depthsX = [];
-  depthsY = [];
+  depthsX: number[];
+  depthsY: number[];
   raf = null;
 
-  bounds = null;
+  bounds: DOMRect;
   elementPositionX: number = 0;
   elementPositionY: number = 0;
   elementWidth: number = 0;
@@ -256,10 +265,20 @@ class Parallax {
   orientationStatus: number = 0;
   motionStatus: number = 0;
 
+  hoverOnly: boolean;
+
   transform2DSupport: boolean = false;
   transform3DSupport: boolean = false;
+  supportDelay: number;
 
   calibrationDelay: number = 0;
+
+  selector: string = '';
+
+  relativeInput: boolean = false;
+  clipRelativeInput: boolean = false;
+
+  pointerEvents: boolean = false;
 
   constructor(element: HTMLElement, options) {
 
@@ -288,9 +307,7 @@ class Parallax {
     }
 
     for (let key in data) {
-      if (data[key] === null) {
-        delete data[key]
-      }
+      if (data[key] === null) delete data[key]
     }
 
     objectAssign(this, DEFAULTS, data, options)
@@ -314,9 +331,11 @@ class Parallax {
   /**
    * Initialize the Parallax scene
    */
-  initialize() {
+  initialize(): void {
     this.transform2DSupport = helpers.transformSupport('2D');
     this.transform3DSupport = helpers.transformSupport('3D');
+
+    if(!this.element) return console.error('There is no Parallax scene defined!');
 
     // Configure Context Styles
     if (this.transform3DSupport) {
@@ -325,13 +344,11 @@ class Parallax {
 
     let style = window.getComputedStyle(this.element)
     if (style.getPropertyValue('position') === 'static') {
-      this.element.style.position = 'relative'
+      if(this.element) this.element.style.position = 'relative'
     }
 
     // Pointer events
-    if(!this.pointerEvents) {
-      this.element.style.pointerEvents = 'none'
-    }
+    if(!this.pointerEvents) this.element.style.pointerEvents = 'none'
 
     // Setup
     this.updateLayers()
@@ -340,22 +357,20 @@ class Parallax {
     this.queueCalibration(this.calibrationDelay)
   }
 
-  doReadyCallback() {
-    if(this.onReady) {
-      this.onReady()
-    }
+  doReadyCallback(): void {
+    if(this.onReady) this.onReady()
   }
 
-  updateLayers() {
+  updateLayers(): void {
+    if(!this.element) return console.error('There is no Parallax scene defined!');
+
     if(this.selector) {
-      this.layers = this.element.querySelectorAll(this.selector)
+      this.layers = Array.from(this.element.querySelectorAll(this.selector))
     } else {
-      this.layers = this.element.children
+      this.layers = Array.from(this.element.children)
     }
 
-    if(!this.layers.length) {
-      console.warn('ParallaxJS: Your scene does not have any layers.')
-    }
+    if(!this.layers.length) return console.warn('ParallaxJS: Your scene does not have any layers.')
 
     this.depthsX = []
     this.depthsY = []
@@ -372,13 +387,13 @@ class Parallax {
       layer.style.left = 0
       layer.style.top = 0
 
-      let depth = helpers.data(layer, 'depth') || 0
-      this.depthsX.push(helpers.data(layer, 'depth-x') || depth)
-      this.depthsY.push(helpers.data(layer, 'depth-y') || depth)
+      let depth: number = (helpers.data(layer, 'depth') as number) || 0
+      this.depthsX.push((helpers.data(layer, 'depth-x') as number) || depth)
+      this.depthsY.push((helpers.data(layer, 'depth-y') as number) || depth)
     }
   }
 
-  updateDimensions() {
+  updateDimensions(): void {
     this.windowWidth = window.innerWidth
     this.windowHeight = window.innerHeight
     this.windowCenterX = this.windowWidth * this.originX
@@ -387,7 +402,7 @@ class Parallax {
     this.windowRadiusY = Math.max(this.windowCenterY, this.windowHeight - this.windowCenterY)
   }
 
-  updateBounds() {
+  updateBounds(): void {
     this.bounds = this.inputElement.getBoundingClientRect()
     this.elementPositionX = this.bounds.left
     this.elementPositionY = this.bounds.top
@@ -399,12 +414,15 @@ class Parallax {
     this.elementRangeY = Math.max(this.elementCenterY, this.elementHeight - this.elementCenterY)
   }
 
-  queueCalibration(delay) {
+  queueCalibration(delay: number): void {
     clearTimeout(this.calibrationTimer)
     this.calibrationTimer = setTimeout(this.onCalibrationTimer, delay)
   }
 
-  enable() {
+  /**
+   * Enable the Parallax scene
+   */
+  enable(): void {
     if (this.enabled) {
       return
     }
@@ -430,7 +448,10 @@ class Parallax {
     this.raf = rqAnFr(this.onAnimationFrame)
   }
 
-  disable() {
+  /**
+   * Disable the Parallax scene
+   */
+  disable(): void {
     if (!this.enabled) {
       return
     }
@@ -448,42 +469,42 @@ class Parallax {
     rqAnFr.cancel(this.raf)
   }
 
-  calibrate(x: number, y: number) {
+  calibrate(x: number, y: number): void {
     this.calibrateX = x === undefined ? this.calibrateX : x
     this.calibrateY = y === undefined ? this.calibrateY : y
   }
 
-  invert(x: number, y: number) {
+  invert(x: number, y: number): void {
     this.invertX = x === undefined ? this.invertX : x
     this.invertY = y === undefined ? this.invertY : y
   }
 
-  friction(x: number, y: number) {
+  friction(x: number, y: number): void {
     this.frictionX = x === undefined ? this.frictionX : x
     this.frictionY = y === undefined ? this.frictionY : y
   }
 
-  scalar(x: number, y: number) {
+  scalar(x: number, y: number): void {
     this.scalarX = x === undefined ? this.scalarX : x
     this.scalarY = y === undefined ? this.scalarY : y
   }
 
-  limit(x: number, y: number) {
+  limit(x: number, y: number): void {
     this.limitX = x === undefined ? this.limitX : x
     this.limitY = y === undefined ? this.limitY : y
   }
 
-  origin(x, y) {
+  origin(x, y): void {
     this.originX = x === undefined ? this.originX : x
     this.originY = y === undefined ? this.originY : y
   }
 
-  setInputElement(element) {
+  setInputElement(element): void {
     this.inputElement = element
     this.updateDimensions()
   }
 
-  setPosition(element: HTMLElement, x: number, y: number) {
+  setPosition(element: HTMLElement, x: number, y: number): void {
     let positionX: string = x.toFixed(this.precision) + 'px'
     let positionY: string = y.toFixed(this.precision) + 'px'
     if (this.transform3DSupport) {
@@ -496,7 +517,7 @@ class Parallax {
     }
   }
 
-  onOrientationTimer() {
+  onOrientationTimer(): void {
     if (this.orientationSupport && this.orientationStatus === 0) {
       this.disable()
       this.orientationSupport = false
@@ -506,7 +527,7 @@ class Parallax {
     }
   }
 
-  onMotionTimer() {
+  onMotionTimer(): void {
     if (this.motionSupport && this.motionStatus === 0) {
       this.disable()
       this.motionSupport = false
@@ -516,15 +537,17 @@ class Parallax {
     }
   }
 
-  onCalibrationTimer() {
+  onCalibrationTimer(): void {
     this.calibrationFlag = true
   }
 
-  onWindowResize() {
+  onWindowResize(): void {
     this.updateDimensions()
   }
 
-  onAnimationFrame() {
+  onAnimationFrame(): void {
+    if(!(this.layers && this.layers.length)) return; // If there are no layers to animate, we don't need to do all this calculation
+
     this.updateBounds()
     let calibratedInputX = this.inputX - this.calibrationX,
         calibratedInputY = this.inputY - this.calibrationY
@@ -540,14 +563,15 @@ class Parallax {
     }
     this.motionX *= this.elementWidth * (this.scalarX / 100)
     this.motionY *= this.elementHeight * (this.scalarY / 100)
-    if (!isNaN(parseFloat(this.limitX))) {
+    if (!isNaN(this.limitX)) {
       this.motionX = helpers.clamp(this.motionX, -this.limitX, this.limitX)
     }
-    if (!isNaN(parseFloat(this.limitY))) {
+    if (!isNaN(this.limitY)) {
       this.motionY = helpers.clamp(this.motionY, -this.limitY, this.limitY)
     }
     this.velocityX += (this.motionX - this.velocityX) * this.frictionX
     this.velocityY += (this.motionY - this.velocityY) * this.frictionY
+
     for (let index = 0; index < this.layers.length; index++) {
       let layer = this.layers[index],
           depthX = this.depthsX[index],
@@ -559,7 +583,7 @@ class Parallax {
     this.raf = rqAnFr(this.onAnimationFrame)
   }
 
-  rotate(beta, gamma){
+  rotate(beta, gamma): void {
     // Extract Rotation
     let x = (beta || 0) / MAGIC_NUMBER, //  -90 :: 90
         y = (gamma || 0) / MAGIC_NUMBER // -180 :: 180
@@ -581,7 +605,7 @@ class Parallax {
     this.inputY = y
   }
 
-  onDeviceOrientation(event) {
+  onDeviceOrientation(event): void {
     let beta = event.beta
     let gamma = event.gamma
     if (beta !== null && gamma !== null) {
@@ -590,7 +614,7 @@ class Parallax {
     }
   }
 
-  onDeviceMotion(event) {
+  onDeviceMotion(event): void {
     let beta = event.rotationRate.beta
     let gamma = event.rotationRate.gamma
     if (beta !== null && gamma !== null) {
@@ -599,7 +623,7 @@ class Parallax {
     }
   }
 
-  onMouseMove(event) {
+  onMouseMove(event): void {
     let clientX = event.clientX,
         clientY = event.clientY
 
@@ -634,8 +658,10 @@ class Parallax {
     }
   }
 
-  destroy() {
+  destroy(): void {
     this.disable()
+
+    if(!(this.element && this.layers)) return
 
     clearTimeout(this.calibrationTimer)
     clearTimeout(this.detectionTimer)

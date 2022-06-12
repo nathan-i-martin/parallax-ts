@@ -20,12 +20,12 @@ const helpers = {
   },
 
   /**
-   * Take an HTML element and extrude all parallax attributes that we want
+   * Take an HTML element and capture one of the parallax attributes we want
    * @param element An HTML Element
    * @param name The suffix of the data name
-   * @returns 
+   * @returns The attribute, deserialized
    */
-  data(element: HTMLElement, name: string) {
+  data(element: HTMLElement, name: string): boolean | number | string | null {
     let attribute: string = element.getAttribute('data-'+name) ?? '';
 
     return helpers.deserialize(attribute)

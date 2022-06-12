@@ -13,10 +13,31 @@ const helpers = {
   propertyCache: {},
   vendors: [null, ['-webkit-','webkit'], ['-moz-','Moz'], ['-o-','O'], ['-ms-','ms']],
 
-  clamp(value, min, max) {
-    return min < max
-      ? (value < min ? min : value > max ? max : value)
-      : (value < max ? max : value > min ? min : value)
+  /**
+   * Clamp a number if it is outside of the defined region
+   * @param value The value to look at
+   * @param min The minimum allowed value
+   * @param max The maximum allowed value
+   * @returns The value if it is valid. Otherwise, `min` or `max`
+   */
+  clamp(value: number, min: number, max: number): number {
+    const maxIsLarger = (): number => {
+      if(value < min) return min;
+
+      if(value > max) return max;
+
+      return value;
+    }
+    const minIsLarger = (): number => {
+      if(value < max) return max;
+
+      if(value > min) return min;
+
+      return value;
+    }
+    
+    if(min < max) return maxIsLarger()
+    return minIsLarger()
   },
 
   /**

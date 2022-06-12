@@ -6,12 +6,12 @@
 *              If no gyroscope is available, the cursor position is used.
 */
 
+// Where are we getting this file from?
 const rqAnFr = require('raf')
-const objectAssign = require('object-assign')
 
-const helpers = {
-  propertyCache: {},
-  vendors: [[], ['-webkit-','webkit'], ['-moz-','Moz'], ['-o-','O'], ['-ms-','ms']],
+class helpers {
+  static propertyCache: {[key: string]: string} = {};
+  static vendors: string[][] = [[], ['-webkit-','webkit'], ['-moz-','Moz'], ['-o-','O'], ['-ms-','ms']];
 
   /**
    * Clamp a number if it is outside of the defined region
@@ -20,7 +20,7 @@ const helpers = {
    * @param max The maximum allowed value
    * @returns The value if it is valid. Otherwise, `min` or `max`
    */
-  clamp(value: number, min: number, max: number): number {
+  static clamp(value: number, min: number, max: number): number {
     const maxIsLarger = (): number => {
       if(value < min) return min;
 
@@ -38,26 +38,29 @@ const helpers = {
     
     if(min < max) return maxIsLarger()
     return minIsLarger()
-  },
+  }
 
   /**
    * Take an HTML element and capture one of the parallax attributes we want
    * @param element An HTML Element
    * @param name The suffix of the data name
    * @returns The attribute, deserialized
+   * Responses from this method will have to be specifically typed using: `(Response as Type)`
    */
-  data(element: HTMLElement, name: string): any {
-    let attribute: string = element.getAttribute('data-'+name) ?? '';
+  static data(element: HTMLElement, name: string): any {
+    let attribute: string | null = element.getAttribute('data-'+name);
+
+    if(attribute == null) return undefined;
 
     return helpers.deserialize(attribute)
-  },
+  }
 
   /**
    * Deserialize an attribute value
    * @param value A string to be deserialized
    * @returns The value after being deserialized
    */
-  deserialize(value: string): any {
+  static deserialize(value: string): any {
     if (value === 'true')  return true
     if (value === 'false') return false
     if (value === 'null')  return null
@@ -65,32 +68,32 @@ const helpers = {
     if (!isNaN(parseFloat(value)) && isFinite(parseFloat(value))) return parseFloat(value)
 
     return value
-  },
+  }
 
   /**
    * Convert a value to be camelCase
    * @param value the value to convert
    * @returns The value as camelCase
    */
-  camelCase(value: string): string {
+  static camelCase(value: string): string {
     return value.replace(/-+(.)?/g, (match: string, character: string) => {
       return character ? character.toUpperCase() : ''
     })
-  },
+  }
 
-  accelerate(element: HTMLElement) {
+  static accelerate(element: HTMLElement) {
     helpers.css(element, 'transform', 'translate3d(0,0,0) rotate(0.0001deg)')
     helpers.css(element, 'transform-style', 'preserve-3d')
     helpers.css(element, 'backface-visibility', 'hidden')
-  },
+  }
 
-  transformSupport(value: string) {
+  static transformSupport(value: string) {
     let element = document.createElement('div'),
         propertySupport: boolean = false,
         propertyValue: string = '',
         featureSupport: boolean = false,
         cssProperty: string = '',
-        jsProperty: string = ''
+        jsProperty: any = ''
     for (let i = 0, l = helpers.vendors.length; i < l; i++) {
       let vendor: string[] = helpers?.vendors[i];
       if (vendor.length) {
@@ -140,10 +143,10 @@ const helpers = {
         break
     }
     return featureSupport
-  },
+  }
 
-  css(element: HTMLElement, property: string, value: string) {
-    let jsProperty = helpers.propertyCache[property]
+  static css(element: HTMLElement, property: string, value: string) {
+    let jsProperty: any = helpers.propertyCache[property]
     if (!jsProperty) {
       for (let i = 0, l = helpers.vendors.length; i < l; i++) {
         let vendor: string[] = helpers?.vendors[i];
@@ -190,74 +193,74 @@ const MAGIC_NUMBER = 30,
         selector: null
       }
 
-class Parallax {
+export class Parallax {
   element?: HTMLElement;
   inputElement: HTMLElement;
   layers?: any[] = [];
 
-  onReady: Function;
+  onReady?: Function;
 
-  calibrationTimer: NodeJS.Timer;
-  calibrationFlag: boolean = true;
-  calibrationThreshold: number;
+  calibrationTimer?: NodeJS.Timeout;
+  calibrationFlag?: boolean = true;
+  calibrationThreshold?: number;
 
-  detectionTimer: NodeJS.Timer;
+  detectionTimer?: NodeJS.Timeout;
 
   enabled = false;
-  depthsX: number[];
-  depthsY: number[];
+  depthsX?: number[];
+  depthsY?: number[];
   raf = null;
 
-  bounds: DOMRect;
-  elementPositionX: number = 0;
-  elementPositionY: number = 0;
-  elementWidth: number = 0;
-  elementHeight: number = 0;
+  bounds: DOMRect = new DOMRect();
+  elementPositionX?: number;
+  elementPositionY?: number;
+  elementWidth?: number;
+  elementHeight?: number;
 
-  elementCenterX: number = 0;
-  elementCenterY: number = 0;
+  elementCenterX?: number;
+  elementCenterY?: number;
 
-  elementRangeX: number = 0;
-  elementRangeY: number = 0;
+  elementRangeX?: number;
+  elementRangeY?: number;
 
-  calibrationX: number = 0;
-  calibrationY: number = 0;
+  calibrationX?: number;
+  calibrationY?: number;
 
-  inputX: number = 0;
-  inputY: number = 0;
+  inputX?: number;
+  inputY?: number;
 
-  motionX: number = 0;
-  motionY: number = 0;
+  motionX?: number;
+  motionY?: number;
 
-  velocityX: number = 0;
-  velocityY: number = 0;
+  velocityX?: number;
+  velocityY?: number;
 
-  originX: number = 0;
-  originY: number = 0;
+  originX?: number;
+  originY?: number;
 
-  calibrateX: number = 0;
-  calibrateY: number = 0;
+  calibrateX?: number;
+  calibrateY?: number;
   
-  invertX: number = 0;
-  invertY: number = 0;
+  invertX?: number;
+  invertY?: number;
   
-  frictionX: number = 0;
-  frictionY: number = 0;
+  frictionX?: number;
+  frictionY?: number;
     
-  scalarX: number = 0;
-  scalarY: number = 0;
+  scalarX?: number;
+  scalarY?: number;
 
-  limitX: number = 0;
-  limitY: number = 0;
+  limitX?: number;
+  limitY?: number;
 
-  precision: number = 1;
+  precision?: number;
 
-  windowWidth: number = 0;
-  windowHeight: number = 0;
-  windowCenterX: number = 0;
-  windowCenterY: number = 0;
-  windowRadiusX: number = 0;
-  windowRadiusY: number = 0;
+  windowWidth?: number;
+  windowHeight?: number;
+  windowCenterX?: number;
+  windowCenterY?: number;
+  windowRadiusX?: number;
+  windowRadiusY?: number;
   portrait: boolean = false;
   desktop: boolean = !navigator.userAgent.match(/(iPhone|iPod|iPad|Android|BlackBerry|BB10|mobi|tablet|opera mini|nexus 7)/i)
   motionSupport: boolean = !!window.DeviceMotionEvent && !this.desktop
@@ -269,7 +272,7 @@ class Parallax {
 
   transform2DSupport: boolean = false;
   transform3DSupport: boolean = false;
-  supportDelay: number;
+  supportDelay: number = 0;
 
   calibrationDelay: number = 0;
 
@@ -280,37 +283,31 @@ class Parallax {
 
   pointerEvents: boolean = false;
 
-  constructor(element: HTMLElement, options) {
+  constructor(element: HTMLElement) {
 
     this.element = element
 
-    const data = {
-      calibrateX: helpers.data(this.element, 'calibrate-x'),
-      calibrateY: helpers.data(this.element, 'calibrate-y'),
-      invertX: helpers.data(this.element, 'invert-x'),
-      invertY: helpers.data(this.element, 'invert-y'),
-      limitX: helpers.data(this.element, 'limit-x'),
-      limitY: helpers.data(this.element, 'limit-y'),
-      scalarX: helpers.data(this.element, 'scalar-x'),
-      scalarY: helpers.data(this.element, 'scalar-y'),
-      frictionX: helpers.data(this.element, 'friction-x'),
-      frictionY: helpers.data(this.element, 'friction-y'),
-      originX: helpers.data(this.element, 'origin-x'),
-      originY: helpers.data(this.element, 'origin-y'),
-      pointerEvents: helpers.data(this.element, 'pointer-events'),
-      precision: helpers.data(this.element, 'precision'),
-      relativeInput: helpers.data(this.element, 'relative-input'),
-      clipRelativeInput: helpers.data(this.element, 'clip-relative-input'),
-      hoverOnly: helpers.data(this.element, 'hover-only'),
-      inputElement: document.querySelector(helpers.data(this.element, 'input-element')),
-      selector: helpers.data(this.element, 'selector')
-    }
-
-    for (let key in data) {
-      if (data[key] === null) delete data[key]
-    }
-
-    objectAssign(this, DEFAULTS, data, options)
+    // Because we are now dealing with different types. We must define the types individually
+    // If a data attribute doesn't exist, it will simply be saved in the class as undefined, which it would have been anyways.
+    this.calibrateX         = (helpers.data(this.element, 'calibrate-x'   ) as number )
+    this.calibrateY         = (helpers.data(this.element, 'calibrate-y'   ) as number )
+    this.invertX            = (helpers.data(this.element, 'invert-x'      ) as number )
+    this.invertY            = (helpers.data(this.element, 'invert-y'      ) as number )
+    this.limitX             = (helpers.data(this.element, 'limit-x'       ) as number )
+    this.limitY             = (helpers.data(this.element, 'limit-y'       ) as number )
+    this.scalarX            = (helpers.data(this.element, 'scalar-x'      ) as number )
+    this.scalarY            = (helpers.data(this.element, 'scalar-y'      ) as number )
+    this.frictionX          = (helpers.data(this.element, 'friction-x'    ) as number )
+    this.frictionY          = (helpers.data(this.element, 'friction-y'    ) as number )
+    this.originX            = (helpers.data(this.element, 'origin-x'      ) as number )
+    this.originY            = (helpers.data(this.element, 'origin-y'      ) as number )
+    this.pointerEvents      = (helpers.data(this.element, 'pointer-events') as boolean)
+    this.precision          = (helpers.data(this.element, 'precision'     ) as number )
+    this.relativeInput      = (helpers.data(this.element, 'relative-input') as boolean)
+    this.clipRelativeInput  = (helpers.data(this.element, 'clip-relative-input') as boolean)
+    this.hoverOnly          = (helpers.data(this.element, 'hover-only'    ) as boolean)
+    this.inputElement       = (document.querySelector(helpers.data(this.element, 'input-element')) as HTMLElement)
+    this.selector           = (helpers.data(this.element, 'selector'      ) as string )
 
     if(!this.inputElement) {
       this.inputElement = this.element
@@ -394,6 +391,9 @@ class Parallax {
   }
 
   updateDimensions(): void {
+    if(!this.originX) return;
+    if(!this.originY) return;
+
     this.windowWidth = window.innerWidth
     this.windowHeight = window.innerHeight
     this.windowCenterX = this.windowWidth * this.originX
@@ -403,6 +403,9 @@ class Parallax {
   }
 
   updateBounds(): void {
+    if(!this.originX) return;
+    if(!this.originY) return;
+
     this.bounds = this.inputElement.getBoundingClientRect()
     this.elementPositionX = this.bounds.left
     this.elementPositionY = this.bounds.top
@@ -494,12 +497,12 @@ class Parallax {
     this.limitY = y === undefined ? this.limitY : y
   }
 
-  origin(x, y): void {
+  origin(x: number, y: number): void {
     this.originX = x === undefined ? this.originX : x
     this.originY = y === undefined ? this.originY : y
   }
 
-  setInputElement(element): void {
+  setInputElement(element: HTMLElement): void {
     this.inputElement = element
     this.updateDimensions()
   }
@@ -546,6 +549,25 @@ class Parallax {
   }
 
   onAnimationFrame(): void {
+    // Compress these if you'd like, having them uncompressed like this seems easier to read
+    if(!this.inputX) return;
+    if(!this.inputY) return;
+    if(!this.calibrationX) return;
+    if(!this.calibrationY) return;
+    if(!this.calibrationThreshold) return;
+    if(!this.elementWidth) return;
+    if(!this.elementHeight) return;
+    if(!this.limitX) return;
+    if(!this.limitY) return;
+    if(!this.scalarX) return;
+    if(!this.scalarY) return;
+    if(!this.velocityX) return;
+    if(!this.velocityY) return;
+    if(!this.depthsX) return;
+    if(!this.depthsY) return;
+    if(!this.frictionX) return;
+    if(!this.frictionY) return;
+
     if(!(this.layers && this.layers.length)) return; // If there are no layers to animate, we don't need to do all this calculation
 
     this.updateBounds()
@@ -583,7 +605,10 @@ class Parallax {
     this.raf = rqAnFr(this.onAnimationFrame)
   }
 
-  rotate(beta, gamma): void {
+  rotate(beta: number, gamma: number): void {
+    if(!this.windowHeight) return;
+    if(!this.windowWidth) return;
+
     // Extract Rotation
     let x = (beta || 0) / MAGIC_NUMBER, //  -90 :: 90
         y = (gamma || 0) / MAGIC_NUMBER // -180 :: 180
@@ -605,7 +630,7 @@ class Parallax {
     this.inputY = y
   }
 
-  onDeviceOrientation(event): void {
+  onDeviceOrientation(event: DeviceOrientationEvent): void {
     let beta = event.beta
     let gamma = event.gamma
     if (beta !== null && gamma !== null) {
@@ -614,16 +639,30 @@ class Parallax {
     }
   }
 
-  onDeviceMotion(event): void {
-    let beta = event.rotationRate.beta
-    let gamma = event.rotationRate.gamma
+  onDeviceMotion(event: DeviceMotionEvent): void {
+
+    let beta = event?.rotationRate?.beta
+    let gamma = event?.rotationRate?.gamma
+
+    if(!beta) return;
+    if(!gamma) return;
+
     if (beta !== null && gamma !== null) {
       this.motionStatus = 1
       this.rotate(beta, gamma)
     }
   }
 
-  onMouseMove(event): void {
+  onMouseMove(event: MouseEvent): void {
+    if(!this.elementPositionX) return;
+    if(!this.elementPositionY) return;
+    if(!this.elementCenterX) return;
+    if(!this.elementCenterY) return;
+    if(!this.elementWidth) return;
+    if(!this.elementHeight) return;
+    if(!this.windowCenterX) return;
+    if(!this.windowCenterY) return;
+
     let clientX = event.clientX,
         clientY = event.clientY
 
@@ -680,5 +719,3 @@ class Parallax {
   }
 
 }
-
-module.exports = Parallax

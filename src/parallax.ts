@@ -19,11 +19,19 @@ const helpers = {
       : (value < max ? max : value > min ? min : value)
   },
 
-  data(element, name) {
-    return helpers.deserialize(element.getAttribute('data-'+name))
+  /**
+   * Take an HTML element and extrude all parallax attributes that we want
+   * @param element An HTML Element
+   * @param name The suffix of the data name
+   * @returns 
+   */
+  data(element: HTMLElement, name: string) {
+    let attribute: string = element.getAttribute('data-'+name) ?? '';
+
+    return helpers.deserialize(attribute)
   },
 
-  deserialize(value) {
+  deserialize(value: string) {
     if (value === 'true') {
       return true
     } else if (value === 'false') {
@@ -204,6 +212,8 @@ class Parallax {
   transform2DSupport: boolean = false;
   transform3DSupport: boolean = false;
 
+  calibrationDelay: number = 0;
+
   constructor(element: HTMLElement, options) {
 
     this.element = element
@@ -251,14 +261,12 @@ class Parallax {
     this.onAnimationFrame = this.onAnimationFrame.bind(this);
     this.onWindowResize = this.onWindowResize.bind(this);
 
-    this.initialise()
+    this.initialize()
   }
 
-  initialise() {
-    if (this.transform2DSupport === undefined) {
-      this.transform2DSupport = helpers.transformSupport('2D')
-      this.transform3DSupport = helpers.transformSupport('3D')
-    }
+  initialize() {
+    this.transform2DSupport = helpers.transformSupport('2D');
+    this.transform3DSupport = helpers.transformSupport('3D');
 
     // Configure Context Styles
     if (this.transform3DSupport) {
